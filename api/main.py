@@ -3,14 +3,13 @@ api/main.py — FastAPI fraud-detection service.
 
 Endpoints
 ---------
-GET  /health   → model name, version, alias, feature count
+GET  /health   → model name, feature count, threshold
 POST /predict  → fraud_probability, is_fraud, top 5 SHAP contributors
 
-The model is loaded once at startup from the MLflow Model Registry under the
-alias "production".  SHAP values are computed with TreeExplainer on the raw
-XGBoost booster (extracted from the pipeline) so that the scaler's transform
-is applied to the input before SHAP sees it, keeping explanations consistent
-with training.
+The model is loaded once at startup from hf_space/model.pkl — a serialised
+sklearn Pipeline (StandardScaler + XGBoostClassifier).  SHAP values are
+computed with TreeExplainer on the raw XGBoost booster extracted from the
+pipeline, keeping explanations consistent with training.
 
 Run with:
     uvicorn api.main:app --reload
@@ -18,26 +17,22 @@ Run with:
 
 from __future__ import annotations
 
-import os
+import pickle
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-import mlflow.sklearn
 import numpy as np
 import pandas as pd
 import shap
 from fastapi import FastAPI, HTTPException
-from mlflow import MlflowClient
 from pydantic import BaseModel, Field
 
-# ── MLflow setup ──────────────────────────────────────────────────────────────
-_HERE    = Path(__file__).parent
-_DB_PATH = (_HERE / ".." / "mlflow.db").resolve().as_posix()
-TRACKING_URI  = f"sqlite:///{_DB_PATH}"
-REGISTRY_NAME = "fraud-detector"
-ALIAS         = "production"
-THRESHOLD     = 0.9848   # optimal threshold from tune.py (precision ≥ 90%)
+# ── Paths ─────────────────────────────────────────────────────────────────────
+_HERE      = Path(__file__).parent
+MODEL_PATH = _HERE / ".." / "hf_space" / "model.pkl"
+
+THRESHOLD = 0.9848   # optimal threshold from tune.py (precision ≥ 90%)
 
 # Feature columns the model was trained on (order matters for SHAP)
 FEATURE_COLS = [
@@ -51,12 +46,10 @@ FEATURE_COLS = [
 
 # ── App state ─────────────────────────────────────────────────────────────────
 class _State:
-    pipeline:       Any = None   # full sklearn Pipeline
-    scaler:         Any = None   # pipeline["scaler"]
-    booster:        Any = None   # raw XGBoost booster for TreeExplainer
-    explainer:      Any = None   # shap.TreeExplainer
-    model_version:  str = ""
-    model_name:     str = REGISTRY_NAME
+    pipeline:  Any = None   # full sklearn Pipeline
+    scaler:    Any = None   # pipeline["scaler"]
+    booster:   Any = None   # raw XGBoost booster for TreeExplainer
+    explainer: Any = None   # shap.TreeExplainer
 
 
 state = _State()
@@ -65,23 +58,15 @@ state = _State()
 # ── Lifespan: load model once at startup ─────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    mlflow.set_tracking_uri(TRACKING_URI)
-    client = MlflowClient()
+    with open(MODEL_PATH, "rb") as f:
+        state.pipeline = pickle.load(f)
 
-    mv = client.get_model_version_by_alias(REGISTRY_NAME, ALIAS)
-    state.model_version = mv.version
+    state.scaler    = state.pipeline.named_steps["scaler"]
+    state.booster   = state.pipeline.named_steps["clf"].get_booster()
+    state.explainer = shap.TreeExplainer(state.booster)
 
-    state.pipeline = mlflow.sklearn.load_model(f"models:/{REGISTRY_NAME}@{ALIAS}")
-    state.scaler   = state.pipeline.named_steps["scaler"]
-
-    # Extract the underlying XGBoost Booster for TreeExplainer
-    xgb_clf          = state.pipeline.named_steps["clf"]
-    state.booster    = xgb_clf.get_booster()
-    state.explainer  = shap.TreeExplainer(state.booster)
-
-    print(f"Loaded '{REGISTRY_NAME}' v{state.model_version} (@{ALIAS})")
+    print(f"Model loaded from {MODEL_PATH}")
     yield
-    # nothing to teardown
 
 
 app = FastAPI(
@@ -168,12 +153,9 @@ def health():
     if state.pipeline is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     return {
-        "status":        "ok",
-        "model_name":    state.model_name,
-        "model_version": state.model_version,
-        "alias":         ALIAS,
-        "n_features":    len(FEATURE_COLS),
-        "threshold":     THRESHOLD,
+        "status":     "ok",
+        "n_features": len(FEATURE_COLS),
+        "threshold":  THRESHOLD,
     }
 
 
