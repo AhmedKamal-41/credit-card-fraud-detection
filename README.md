@@ -3,12 +3,10 @@
 > End-to-end ML pipeline for detecting fraudulent credit card transactions —
 > from raw data through feature engineering, model comparison, hyperparameter
 > tuning, SHAP explainability, a FastAPI serving layer, and a live Streamlit
-> dashboard deployed to Hugging Face Spaces.
+> dashboard.
 
-[![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Live%20Demo-orange)](https://huggingface.co/spaces/AhmedKamal-41/credit-card-fraud-detector)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-online-brightgreen)](https://credit-card-fraud-detection-production-d1f1.up.railway.app/)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
 ---
 
 ## Table of Contents
@@ -67,7 +65,7 @@ Features V1–V28 are PCA-transformed (anonymised); `Time` and `Amount` are raw.
 | Visualisation | `matplotlib`, `seaborn` |
 | API | `fastapi`, `uvicorn` |
 | Dashboard | `streamlit` |
-| Deployment | Hugging Face Spaces |
+| Deployment | Streamlit (live) |
 
 ### Project Structure
 
@@ -275,14 +273,7 @@ streamlit run app/streamlit_app.py
 
 ## Live Demo
 
-**[🤗 Open in Hugging Face Spaces](https://huggingface.co/spaces/AhmedKamal-41/credit-card-fraud-detector)**
+**[🚀 Open Live Demo](https://credit-card-fraud-detection-production-d1f1.up.railway.app/)**
 
-The Space runs the self-contained version in `hf_space/` — no MLflow server,
-no local data files. The model is loaded from `model.pkl` and the PR curve
-from `pr_curve.npz`, both bundled in the repo.
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE) for details.
+The live version runs the self-contained app — no MLflow server, no local data files.
+The model is loaded from `model.pkl` and the PR curve from `pr_curve.npz`, both bundled in the repo.
