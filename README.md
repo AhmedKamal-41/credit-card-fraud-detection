@@ -5,7 +5,7 @@
 > tuning, SHAP explainability, a FastAPI serving layer, and a live Streamlit
 > dashboard deployed to Hugging Face Spaces.
 
-[![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Live%20Demo-orange)](https://huggingface.co/spaces/YOUR_USERNAME/credit-card-fraud-detector)
+[![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Live%20Demo-orange)](https://huggingface.co/spaces/AhmedKamal-41/credit-card-fraud-detector)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -192,23 +192,31 @@ precision–recall tradeoff immediately tangible.*
 ### Prerequisites
 
 - Python 3.11+
-- The raw dataset at `data/creditcard.csv`
-  (download from [Kaggle](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud))
 
-### 1. Install dependencies
+### 1. Download the dataset
+
+The dataset is not included in this repository (it exceeds GitHub's file size limit).
+Download `creditcard.csv` from Kaggle and place it at `data/creditcard.csv`:
+
+**[Kaggle — Credit Card Fraud Detection](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)**
+
+> You will need a free Kaggle account. Once downloaded, unzip and place the file at:
+> `fraud-detection/data/creditcard.csv`
+
+### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Prepare data & features
+### 3. Prepare data & features
 
 ```bash
 python src/features.py        # engineers features; saves train/test_engineered.csv
 python src/preprocessing.py   # applies SMOTE; saves X/y_train_resampled.csv
 ```
 
-### 3. Train all models (logs to MLflow)
+### 4. Train all models (logs to MLflow)
 
 ```bash
 python src/train.py
@@ -221,20 +229,20 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 # → http://localhost:5000
 ```
 
-### 4. Tune XGBoost (optional, ~12 min)
+### 5. Tune XGBoost (optional, ~12 min)
 
 ```bash
 python src/tune.py
 ```
 
-### 5. Generate SHAP plots
+### 6. Generate SHAP plots
 
 ```bash
 python src/explain.py
 # Saves beeswarm, waterfall, force, and dependence PNGs to plots/
 ```
 
-### 6. Start the FastAPI server
+### 7. Start the FastAPI server
 
 ```bash
 uvicorn api.main:app --reload
@@ -256,7 +264,7 @@ curl -X POST http://localhost:8000/predict \
        "V25": -0.20, "V26": -0.37, "V27": 0.16, "V28": 0.13}'
 ```
 
-### 7. Launch the Streamlit dashboard
+### 8. Launch the Streamlit dashboard
 
 ```bash
 streamlit run app/streamlit_app.py
@@ -267,10 +275,7 @@ streamlit run app/streamlit_app.py
 
 ## Live Demo
 
-**[🤗 Open in Hugging Face Spaces](https://huggingface.co/spaces/YOUR_USERNAME/credit-card-fraud-detector)**
-
-> Update the URL above and the badge at the top of this file with your actual
-> Hugging Face username after deploying.
+**[🤗 Open in Hugging Face Spaces](https://huggingface.co/spaces/AhmedKamal-41/credit-card-fraud-detector)**
 
 The Space runs the self-contained version in `hf_space/` — no MLflow server,
 no local data files. The model is loaded from `model.pkl` and the PR curve

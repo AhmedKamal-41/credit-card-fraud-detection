@@ -1,0 +1,36 @@
+name: Sync hf_space to Hugging Face Spaces
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "hf_space/**"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push hf_space/ to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+
+          # Clone the HF Space
+          git clone https://AhmedKamal-41:$HF_TOKEN@huggingface.co/spaces/AhmedKamal-41/credit-card-fraud-detector hf_repo
+
+          # Copy contents of hf_space/ into the cloned Space
+          cp -r hf_space/. hf_repo/
+
+          # Commit and push
+          cd hf_repo
+          git add .
+          git diff --cached --quiet || git commit -m "Sync from GitHub: ${{ github.sha }}"
+          git push
