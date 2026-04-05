@@ -67,8 +67,10 @@ def load_model():
 
 @st.cache_data(show_spinner=False)
 def load_pr_data():
-    data = np.load(_HERE / "pr_curve.npz")
-    return data["precision"], data["recall"], data["thresholds"], float(data["base_val"])
+    data     = np.load(_HERE / "pr_curve.npz", allow_pickle=True)
+    base_raw = data["base_val"]
+    base_val = float(base_raw.item()) if np.ndim(base_raw) == 0 else float(np.ravel(base_raw)[0])
+    return data["precision"], data["recall"], data["thresholds"], base_val
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
