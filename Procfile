@@ -1,1 +1,1 @@
-web: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+web: streamlit run app/streamlit_app.py --server.address 0.0.0.0 --server.port $PORT --server.fileWatcherType none --browser.gatherUsageStats false

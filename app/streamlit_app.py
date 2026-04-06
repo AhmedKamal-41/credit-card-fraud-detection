@@ -85,6 +85,28 @@ def load_pr_data():
     return X, y
 
 
+# ── Demo-mode artifact loading (fallback when MLflow / data files are absent) ─
+@st.cache_resource(show_spinner="Loading demo model…")
+def load_artifacts_demo():
+    """Load pickle model from hf_space/ when MLflow is unavailable."""
+    import pickle
+    with open(_ROOT / "hf_space" / "model.pkl", "rb") as f:
+        pipeline = pickle.load(f)
+    scaler    = pipeline.named_steps["scaler"]
+    booster   = pipeline.named_steps["clf"].get_booster()
+    explainer = shap.TreeExplainer(booster)
+    return pipeline, scaler, explainer
+
+
+@st.cache_data(show_spinner=False)
+def load_pr_data_demo():
+    """Load pre-computed PR curve from hf_space/ when test CSV is unavailable."""
+    data    = np.load(_ROOT / "hf_space" / "pr_curve.npz", allow_pickle=True)
+    base_raw = data["base_val"]
+    base_val = float(base_raw.item()) if np.ndim(base_raw) == 0 else float(np.ravel(base_raw)[0])
+    return data["precision"], data["recall"], data["thresholds"], base_val
+
+
 # ── Inference helpers ─────────────────────────────────────────────────────────
 def build_row(slider_vals: dict, amount: float, time: float) -> pd.DataFrame:
     """Build a single feature row from sidebar inputs; fill remaining V cols with 0."""
@@ -174,6 +196,40 @@ def draw_waterfall(shap_vals: np.ndarray, feature_vals: np.ndarray,
 
 
 # ── PR threshold chart ────────────────────────────────────────────────────────
+def draw_pr_threshold_precomputed(prec: np.ndarray, rec: np.ndarray,
+                                  thr: np.ndarray, threshold: float) -> plt.Figure:
+    """PR threshold chart using pre-computed arrays (demo/Railway mode)."""
+    idx    = min(np.searchsorted(thr, threshold), len(prec) - 2)
+    p_at_t = prec[idx]
+    r_at_t = rec[idx]
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.8))
+    fig.patch.set_facecolor("#0e1117")
+
+    for ax, y_data, ylabel, color, label_at_t in [
+        (axes[0], prec[:-1], "Precision", "#42a5f5", p_at_t),
+        (axes[1], rec[:-1],  "Recall",    "#ef5350", r_at_t),
+    ]:
+        ax.set_facecolor("#0e1117")
+        ax.plot(thr, y_data, color=color, lw=2)
+        ax.axvline(threshold, color="white", linestyle="--", lw=1.4,
+                   label=f"t={threshold:.2f}  →  {label_at_t:.3f}")
+        ax.scatter([threshold], [label_at_t], color="white", zorder=5, s=60)
+        ax.set_xlabel("Threshold", color="white", fontsize=9)
+        ax.set_ylabel(ylabel, color="white", fontsize=9)
+        ax.set_xlim([0, 1]); ax.set_ylim([0, 1.05])
+        ax.tick_params(colors="white", labelsize=8)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.spines[["bottom", "left"]].set_color("#444")
+        ax.set_title(f"{ylabel} vs Threshold", color="white",
+                     fontsize=10, fontweight="bold")
+        ax.legend(fontsize=9, labelcolor="white", facecolor="#1a1a2e",
+                  edgecolor="#444", loc="lower right")
+
+    plt.tight_layout()
+    return fig
+
+
 def draw_pr_threshold(pipeline, y_true: np.ndarray, X: pd.DataFrame,
                       threshold: float) -> plt.Figure:
     proba      = pipeline.predict_proba(X)[:, 1]
@@ -213,7 +269,14 @@ def draw_pr_threshold(pipeline, y_true: np.ndarray, X: pd.DataFrame,
 # ═════════════════════════════════════════════════════════════════════════════
 # APP LAYOUT
 # ═════════════════════════════════════════════════════════════════════════════
-pipeline, scaler, explainer, model_version = load_artifacts()
+# Try MLflow; fall back to pickle demo mode if unavailable
+try:
+    pipeline, scaler, explainer, model_version = load_artifacts()
+    _demo_mode = False
+except Exception:
+    pipeline, scaler, explainer = load_artifacts_demo()
+    model_version = "demo"
+    _demo_mode = True
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -338,7 +401,7 @@ with col_meta:
     st.dataframe(
         feat_df,
         hide_index=True,
-        use_container_width=True,
+        width='stretch',
         column_config={
             "SHAP": st.column_config.NumberColumn(format="%.4f"),
         },
@@ -354,7 +417,7 @@ st.caption(
 )
 
 wf_fig = draw_waterfall(sv, X_row.values[0], FEATURE_COLS, bv)
-st.pyplot(wf_fig, use_container_width=True)
+st.pyplot(wf_fig, width='stretch')
 plt.close(wf_fig)
 
 # ── Threshold explorer ────────────────────────────────────────────────────────
@@ -365,11 +428,14 @@ st.caption(
     "precision and recall trade off on the held-out test set."
 )
 
-with st.spinner("Running inference on test set…"):
-    X_test, y_test = load_pr_data()
-
-pr_fig = draw_pr_threshold(pipeline, y_test, X_test, threshold)
-st.pyplot(pr_fig, use_container_width=True)
+with st.spinner("Loading test-set metrics…"):
+    if _demo_mode:
+        prec_arr, rec_arr, thr_arr, _ = load_pr_data_demo()
+        pr_fig = draw_pr_threshold_precomputed(prec_arr, rec_arr, thr_arr, threshold)
+    else:
+        X_test, y_test = load_pr_data()
+        pr_fig = draw_pr_threshold(pipeline, y_test, X_test, threshold)
+st.pyplot(pr_fig, width='stretch')
 plt.close(pr_fig)
 
 # ── Footer ────────────────────────────────────────────────────────────────────
