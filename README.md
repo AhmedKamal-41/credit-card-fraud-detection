@@ -150,9 +150,6 @@ Best hyperparameters: `n_estimators=290`, `max_depth=7`, `learning_rate=0.175`,
 ## Screenshots
 
 ### 1 — Fraud Score Card & Transaction Summary
-
-> Replace this placeholder with a screenshot of the dashboard score card panel.
-
 ![Fraud Score Card](docs/screenshots/01_score_card.png)
 
 *The large colour-coded gauge updates in real time as you adjust transaction
@@ -163,8 +160,6 @@ The FLAGGED / CLEARED badge reflects the current threshold setting.*
 
 ### 2 — Live SHAP Waterfall
 
-> Replace this placeholder with a screenshot of the SHAP waterfall panel.
-
 ![SHAP Waterfall](docs/screenshots/02_shap_waterfall.png)
 
 *Red bars push the prediction toward fraud; blue bars push it away from fraud.
@@ -174,9 +169,6 @@ probability. Drag any slider and the waterfall re-renders instantly.*
 ---
 
 ### 3 — Threshold Explorer
-
-> Replace this placeholder with a screenshot of the precision/recall threshold charts.
-
 ![Threshold Explorer](docs/screenshots/03_threshold_explorer.png)
 
 *Pre-computed on the 56,962-row held-out test set (98 fraud cases). The white
