@@ -446,3 +446,4 @@ st.caption(
     f"Threshold: `{threshold:.4f}` · "
     f"Features: {len(FEATURE_COLS)}"
 )
+
