@@ -86,13 +86,14 @@ def build_row(slider_vals: dict, amount: float, time_sec: float) -> pd.DataFrame
     return pd.DataFrame([row])[FEATURE_COLS]
 
 
-def predict_and_explain(pipeline, scaler, explainer, X_df):
-    prob  = float(pipeline.predict_proba(X_df)[0, 1])
-    X_sc  = scaler.transform(X_df)
-    sv    = explainer.shap_values(X_sc)
-    # shap_values may return array or list depending on shap version
-    sv = sv[0] if isinstance(sv, list) else sv[0]
-    return prob, sv
+@st.cache_data(show_spinner=False, max_entries=256)
+def predict_and_explain(_pipeline, _scaler, _explainer, x_tuple):
+    X_df = pd.DataFrame([list(x_tuple)], columns=FEATURE_COLS)
+    prob = float(_pipeline.predict_proba(X_df)[0, 1])
+    X_sc = _scaler.transform(X_df)
+    sv   = _explainer.shap_values(X_sc)
+    sv   = sv[0] if isinstance(sv, list) else sv[0]
+    return prob, np.asarray(sv)
 
 
 def prob_color(p: float) -> str:
@@ -108,6 +109,12 @@ def prob_label(p: float) -> str:
 
 
 # ── SHAP waterfall ────────────────────────────────────────────────────────────
+@st.cache_resource(show_spinner=False, max_entries=128)
+def get_waterfall_fig(sv_key: tuple, fv_key: tuple, base_val: float) -> plt.Figure:
+    return draw_waterfall(np.asarray(sv_key), np.asarray(fv_key),
+                          FEATURE_COLS, base_val)
+
+
 def draw_waterfall(shap_vals, feature_vals, feature_names, base_val) -> plt.Figure:
     n_show  = 10
     abs_ord = np.argsort(np.abs(shap_vals))[::-1][:n_show]
@@ -153,6 +160,11 @@ def draw_waterfall(shap_vals, feature_vals, feature_names, base_val) -> plt.Figu
 
 
 # ── PR threshold chart ────────────────────────────────────────────────────────
+@st.cache_resource(show_spinner=False, max_entries=64)
+def get_pr_threshold_fig(threshold_key: float) -> plt.Figure:
+    return draw_pr_threshold(prec, rec, thr, threshold_key)
+
+
 def draw_pr_threshold(prec, rec, thr, threshold) -> plt.Figure:
     idx    = min(np.searchsorted(thr, threshold), len(prec) - 2)
     p_at_t = prec[idx]
@@ -230,9 +242,10 @@ with st.sidebar:
                           help="Probability cutoff for the fraud flag")
 
 # ── Inference ─────────────────────────────────────────────────────────────────
-X_row        = build_row(slider_vals, amount, time_val)
-prob, sv     = predict_and_explain(pipeline, scaler, explainer, X_row)
-is_fraud     = prob >= threshold
+X_row    = build_row(slider_vals, amount, time_val)
+x_tuple  = tuple(np.round(X_row.values[0], 6).tolist())
+prob, sv = predict_and_explain(pipeline, scaler, explainer, x_tuple)
+is_fraud = prob >= threshold
 
 # ── Main header ───────────────────────────────────────────────────────────────
 st.markdown("# 🔍 Fraud Detection Dashboard")
@@ -303,9 +316,12 @@ st.caption(
     "**Red** bars push toward fraud · **Blue** bars push away · "
     "Dashed = base rate · Dotted = current prediction"
 )
-wf_fig = draw_waterfall(sv, X_row.values[0], FEATURE_COLS, base_val)
-st.pyplot(wf_fig, use_container_width=True)
-plt.close(wf_fig)
+wf_fig = get_waterfall_fig(
+    tuple(np.round(sv, 5).tolist()),
+    tuple(np.round(X_row.values[0], 5).tolist()),
+    float(base_val),
+)
+st.pyplot(wf_fig, use_container_width=True, clear_figure=False)
 
 # ── Threshold explorer ────────────────────────────────────────────────────────
 st.divider()
@@ -314,9 +330,8 @@ st.caption(
     "Pre-computed on 56,962 held-out transactions (98 fraud). "
     "Drag the **Decision Threshold** slider in the sidebar."
 )
-pr_fig = draw_pr_threshold(prec, rec, thr, threshold)
-st.pyplot(pr_fig, use_container_width=True)
-plt.close(pr_fig)
+pr_fig = get_pr_threshold_fig(round(float(threshold), 2))
+st.pyplot(pr_fig, use_container_width=True, clear_figure=False)
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.divider()
