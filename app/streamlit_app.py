@@ -198,7 +198,7 @@ def draw_waterfall(shap_vals: np.ndarray, feature_vals: np.ndarray,
 # ── PR threshold chart ────────────────────────────────────────────────────────
 def draw_pr_threshold_precomputed(prec: np.ndarray, rec: np.ndarray,
                                   thr: np.ndarray, threshold: float) -> plt.Figure:
-    """PR threshold chart using pre-computed arrays (demo/Railway mode)."""
+    """PR threshold chart using pre-computed arrays (demo/Vercel mode)."""
     idx    = min(np.searchsorted(thr, threshold), len(prec) - 2)
     p_at_t = prec[idx]
     r_at_t = rec[idx]

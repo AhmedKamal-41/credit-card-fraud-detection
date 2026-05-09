@@ -1,0 +1,14 @@
+.git
+.github
+notebooks/
+plots/
+docs/
+data/
+mlruns/
+mlflow.db
+*.csv
+*.ipynb
+.venv/
+__pycache__/
+*.pyc
+hf_space/

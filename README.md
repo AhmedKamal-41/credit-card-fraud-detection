@@ -2,11 +2,11 @@
 
 ![CI](https://github.com/AhmedKamal-41/credit-card-fraud-detection/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![Railway](https://img.shields.io/badge/Deployed-Railway-7B2FBE?logo=railway&logoColor=white)
+![Vercel](https://img.shields.io/badge/Deployed-Vercel-000000?logo=vercel&logoColor=white)
 ![MLflow](https://img.shields.io/badge/MLflow-tracked-0194E2?logo=mlflow&logoColor=white)
 ![XGBoost](https://img.shields.io/badge/XGBoost-2.0-FF6600?logo=xgboost&logoColor=white)
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-online-brightgreen)](https://credit-card-fraud-detection-production-d1f1.up.railway.app/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-online-brightgreen)](https://credit-card-fraud-detection.vercel.app/)
 
 > Built to solve one of fintech's hardest problems: detecting 
 > fraud in a dataset where **99.83% of transactions are 
@@ -105,7 +105,7 @@ financial services (Basel III, SR 11-7).
 | Visualisation | `matplotlib`, `seaborn` |
 | API | `fastapi`, `uvicorn` |
 | Dashboard | `streamlit` |
-| Deployment | Streamlit (live) |
+| Deployment | Vercel (`vercel.json`) |
 
 ### Project Structure
 
@@ -315,7 +315,20 @@ streamlit run app/streamlit_app.py
 
 ## Live Demo
 
-**[🚀 Open Live Demo](https://credit-card-fraud-detection-production-d1f1.up.railway.app/)**
+**[🚀 Open Live Demo](https://credit-card-fraud-detection.vercel.app/)**
 
 The live version runs the self-contained app — no MLflow server, no local data files.
 The model is loaded from `model.pkl` and the PR curve from `pr_curve.npz`, both bundled in the repo.
+
+### Deploying to Vercel
+
+1. Push this repo to GitHub.
+2. Import the project in the [Vercel dashboard](https://vercel.com/new).
+3. Vercel detects `vercel.json` and uses the Python runtime — no extra configuration needed.
+4. The build installs from `requirements.txt` and serves `app/streamlit_app.py`.
+
+> **Note:** Vercel is built around short-lived serverless functions, while Streamlit
+> needs a persistent process with websockets. The dashboard may not behave correctly
+> on Vercel — if you hit issues, hosting on a platform with long-running
+> processes (Streamlit Community Cloud, Hugging Face Spaces, Fly.io, Render) is the
+> safer choice for the dashboard, and Vercel can still host the FastAPI endpoint.
