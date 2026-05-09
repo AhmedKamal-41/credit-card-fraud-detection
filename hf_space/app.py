@@ -115,40 +115,86 @@ def prob_label(p: float) -> str:
 def score_gauge_fig(prob: float, threshold: float):
     color = prob_color(prob)
     label = prob_label(prob)
+    delta_pp = (prob - threshold) * 100  # signed pp distance from threshold
 
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
+    fig = go.Figure()
+
+    # Top accent strip (color-coded by risk)
+    fig.add_shape(
+        type="rect", x0=0, x1=1, y0=0.965, y1=1.0,
+        xref="paper", yref="paper",
+        line=dict(width=0), fillcolor=color,
+    )
+
+    # Big number + risk label
+    fig.add_trace(go.Indicator(
+        mode="number",
         value=prob * 100,
-        number=dict(suffix="%", font=dict(size=44, color=color), valueformat=".1f"),
-        gauge=dict(
-            axis=dict(range=[0, 100], tickfont=dict(color="#aaa", size=10),
-                      tickcolor="#444"),
-            bar=dict(color=color, thickness=0.28),
-            bgcolor="rgba(0,0,0,0)",
-            borderwidth=0,
-            steps=[
-                dict(range=[0,  30], color="rgba(46,125,50,0.18)"),
-                dict(range=[30, 70], color="rgba(245,124,0,0.18)"),
-                dict(range=[70,100], color="rgba(198,40,40,0.18)"),
-            ],
-            threshold=dict(
-                line=dict(color="white", width=3),
-                thickness=0.85,
-                value=threshold * 100,
-            ),
+        number=dict(
+            suffix="%",
+            font=dict(size=64, color=color, family="system-ui, -apple-system, sans-serif"),
+            valueformat=".1f",
         ),
         title=dict(
-            text=f"<span style='font-size:13px;color:#aaa;letter-spacing:2px'>"
-                 f"FRAUD PROBABILITY</span><br>"
-                 f"<span style='font-size:15px;color:{color};letter-spacing:2px;"
-                 f"font-weight:700'>{label}</span>",
+            text=f"<span style='font-size:10px;color:#888;letter-spacing:3px;"
+                 f"font-weight:600'>FRAUD PROBABILITY</span>",
         ),
-        domain=dict(x=[0, 1], y=[0, 0.72]),
+        domain=dict(x=[0, 1], y=[0.30, 0.92]),
     ))
 
+    # Risk label
+    fig.add_annotation(
+        x=0.5, y=0.22, xref="paper", yref="paper",
+        text=f"<span style='color:{color};font-weight:700;letter-spacing:3px;"
+             f"font-size:12px'>{label}</span>",
+        showarrow=False,
+    )
+
+    # Probability rail (background bar)
+    rail_left, rail_right = 0.10, 0.90
+    rail_y0, rail_y1 = 0.07, 0.105
+    fig.add_shape(
+        type="rect", x0=rail_left, x1=rail_right, y0=rail_y0, y1=rail_y1,
+        xref="paper", yref="paper",
+        line=dict(width=0), fillcolor="#eceff1",
+    )
+    # Probability fill
+    fill_x = rail_left + (rail_right - rail_left) * float(np.clip(prob, 0, 1))
+    fig.add_shape(
+        type="rect", x0=rail_left, x1=fill_x, y0=rail_y0, y1=rail_y1,
+        xref="paper", yref="paper",
+        line=dict(width=0), fillcolor=color,
+    )
+    # Threshold tick
+    thresh_x = rail_left + (rail_right - rail_left) * float(np.clip(threshold, 0, 1))
+    fig.add_shape(
+        type="line", x0=thresh_x, x1=thresh_x, y0=rail_y0 - 0.025, y1=rail_y1 + 0.025,
+        xref="paper", yref="paper",
+        line=dict(color="#1a1a2e", width=2),
+    )
+
+    # Δ vs threshold (signed, color-coded) and threshold caption
+    delta_color = "#c62828" if delta_pp > 0 else "#2e7d32"
+    delta_sign  = "+" if delta_pp > 0 else ""
+    fig.add_annotation(
+        x=rail_left, y=0.0, xref="paper", yref="paper",
+        text=f"<span style='color:{delta_color};font-size:10px;font-weight:600'>"
+             f"Δ {delta_sign}{delta_pp:.1f}pp vs threshold</span>",
+        showarrow=False, xanchor="left",
+    )
+    fig.add_annotation(
+        x=rail_right, y=0.0, xref="paper", yref="paper",
+        text=f"<span style='color:#999;font-size:10px'>"
+             f"t = {threshold:.2f}</span>",
+        showarrow=False, xanchor="right",
+    )
+
+    fig.update_xaxes(visible=False, range=[0, 1])
+    fig.update_yaxes(visible=False, range=[0, 1])
     fig.update_layout(
-        paper_bgcolor=PLOTLY_BG, plot_bgcolor=PLOTLY_BG,
-        height=280, margin=dict(l=10, r=10, t=80, b=10),
+        paper_bgcolor="white", plot_bgcolor="white",
+        height=240, margin=dict(l=14, r=14, t=14, b=14),
+        showlegend=False,
     )
     return fig
 
@@ -314,11 +360,12 @@ col_score, col_meta = st.columns([1, 2], gap="large")
 
 # ── Score card (Plotly gauge) ─────────────────────────────────────────────────
 with col_score:
-    st.plotly_chart(
-        score_gauge_fig(round(float(prob), 4), round(float(threshold_use), 2)),
-        use_container_width=True,
-        config={"displayModeBar": False, "staticPlot": True},
-    )
+    with st.container(border=True):
+        st.plotly_chart(
+            score_gauge_fig(round(float(prob), 4), round(float(threshold_use), 2)),
+            use_container_width=True,
+            config={"displayModeBar": False, "staticPlot": True},
+        )
     if is_fraud:
         st.error(f"⚠️  FLAGGED AS FRAUD  ·  threshold = {threshold_use:.2f}")
     else:
