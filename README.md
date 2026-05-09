@@ -2,11 +2,11 @@
 
 ![CI](https://github.com/AhmedKamal-41/credit-card-fraud-detection/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![Vercel](https://img.shields.io/badge/Deployed-Vercel-000000?logo=vercel&logoColor=white)
+![HuggingFace](https://img.shields.io/badge/Deployed-HuggingFace%20Spaces-FFD21E?logo=huggingface&logoColor=black)
 ![MLflow](https://img.shields.io/badge/MLflow-tracked-0194E2?logo=mlflow&logoColor=white)
 ![XGBoost](https://img.shields.io/badge/XGBoost-2.0-FF6600?logo=xgboost&logoColor=white)
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-online-brightgreen)](https://credit-card-fraud-detection.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-online-brightgreen)](https://huggingface.co/spaces/AhmedKamal-41/credit-card-fraud-detection)
 
 > Built to solve one of fintech's hardest problems: detecting 
 > fraud in a dataset where **99.83% of transactions are 
@@ -105,7 +105,7 @@ financial services (Basel III, SR 11-7).
 | Visualisation | `matplotlib`, `seaborn` |
 | API | `fastapi`, `uvicorn` |
 | Dashboard | `streamlit` |
-| Deployment | Vercel (`vercel.json`) |
+| Deployment | Hugging Face Spaces (Streamlit SDK) |
 
 ### Project Structure
 
@@ -315,20 +315,17 @@ streamlit run app/streamlit_app.py
 
 ## Live Demo
 
-**[🚀 Open Live Demo](https://credit-card-fraud-detection.vercel.app/)**
+**[🚀 Open Live Demo](https://huggingface.co/spaces/AhmedKamal-41/credit-card-fraud-detection)**
 
 The live version runs the self-contained app — no MLflow server, no local data files.
 The model is loaded from `model.pkl` and the PR curve from `pr_curve.npz`, both bundled in the repo.
 
-### Deploying to Vercel
+### Deploying to Hugging Face Spaces
 
-1. Push this repo to GitHub.
-2. Import the project in the [Vercel dashboard](https://vercel.com/new).
-3. Vercel detects `vercel.json` and uses the Python runtime — no extra configuration needed.
-4. The build installs from `requirements.txt` and serves `app/streamlit_app.py`.
+1. Create a new Streamlit Space at [huggingface.co/new-space](https://huggingface.co/new-space).
+2. Upload the contents of `hf_space/` (`app.py`, `model.pkl`, `pr_curve.npz`, `requirements.txt`, `README.md`).
+3. The Space auto-builds from `requirements.txt` and serves `app.py`.
 
-> **Note:** Vercel is built around short-lived serverless functions, while Streamlit
-> needs a persistent process with websockets. The dashboard may not behave correctly
-> on Vercel — if you hit issues, hosting on a platform with long-running
-> processes (Streamlit Community Cloud, Hugging Face Spaces, Fly.io, Render) is the
-> safer choice for the dashboard, and Vercel can still host the FastAPI endpoint.
+A GitHub Action (`.github/workflows/sync_to_hf.yml`) is also wired up to push
+`hf_space/` to the Space on every commit to `main` — set the `HF_TOKEN` repo
+secret to enable it.
