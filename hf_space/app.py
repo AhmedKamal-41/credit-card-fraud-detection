@@ -298,34 +298,15 @@ st.divider()
 
 col_score, col_meta = st.columns([1, 2], gap="large")
 
-# ── Score card (lighter HTML, less to flicker) ────────────────────────────────
+# ── Score card (native components only — no HTML) ────────────────────────────
 with col_score:
-    color = prob_color(prob)
     label = prob_label(prob)
-    st.markdown(
-        f"""
-        <div style="
-            background:{color}1a;border:2px solid {color};
-            border-radius:14px;padding:18px 14px;text-align:center;
-        ">
-            <div style="font-size:11px;color:#aaa;letter-spacing:2px;">
-                FRAUD PROBABILITY
-            </div>
-            <div style="font-size:56px;font-weight:800;color:{color};line-height:1.05;">
-                {prob*100:.1f}%
-            </div>
-            <div style="font-size:14px;font-weight:700;color:{color};
-                        margin-top:6px;letter-spacing:2px;">
-                {label}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.metric("Fraud probability", f"{prob*100:.1f}%", label, delta_color="off")
+    st.progress(min(prob, 1.0))
     if is_fraud:
-        st.error(f"⚠️ FLAGGED AS FRAUD  (threshold = {threshold_use:.2f})")
+        st.error(f"⚠️  FLAGGED AS FRAUD  ·  threshold = {threshold_use:.2f}")
     else:
-        st.success(f"✓ CLEARED  (threshold = {threshold_use:.2f})")
+        st.success(f"✓  CLEARED  ·  threshold = {threshold_use:.2f}")
 
 # ── Meta / feature table ──────────────────────────────────────────────────────
 with col_meta:
@@ -346,7 +327,7 @@ with col_meta:
         }
         for feat in TOP5
     ])
-    st.dataframe(feat_df, hide_index=True, use_container_width=True)
+    st.table(feat_df.set_index("Feature"))
 
 # ── SHAP waterfall ────────────────────────────────────────────────────────────
 st.divider()
