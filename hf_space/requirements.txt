@@ -4,4 +4,4 @@ shap==0.51.0
 scikit-learn==1.8.0
 pandas==2.3.3
 numpy==2.4.4
-matplotlib==3.10.8
+plotly==5.24.1
