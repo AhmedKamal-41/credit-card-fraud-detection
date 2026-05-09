@@ -110,6 +110,50 @@ def prob_label(p: float) -> str:
     return "HIGH RISK"
 
 
+# ── Plotly: fraud-score gauge ─────────────────────────────────────────────────
+@st.cache_data(show_spinner=False, max_entries=128)
+def score_gauge_fig(prob: float, threshold: float):
+    color = prob_color(prob)
+    label = prob_label(prob)
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=prob * 100,
+        number=dict(suffix="%", font=dict(size=44, color=color), valueformat=".1f"),
+        gauge=dict(
+            axis=dict(range=[0, 100], tickfont=dict(color="#aaa", size=10),
+                      tickcolor="#444"),
+            bar=dict(color=color, thickness=0.28),
+            bgcolor="rgba(0,0,0,0)",
+            borderwidth=0,
+            steps=[
+                dict(range=[0,  30], color="rgba(46,125,50,0.18)"),
+                dict(range=[30, 70], color="rgba(245,124,0,0.18)"),
+                dict(range=[70,100], color="rgba(198,40,40,0.18)"),
+            ],
+            threshold=dict(
+                line=dict(color="white", width=3),
+                thickness=0.85,
+                value=threshold * 100,
+            ),
+        ),
+        title=dict(
+            text=f"<span style='font-size:13px;color:#aaa;letter-spacing:2px'>"
+                 f"FRAUD PROBABILITY</span><br>"
+                 f"<span style='font-size:15px;color:{color};letter-spacing:2px;"
+                 f"font-weight:700'>{label}</span>",
+            y=0.92,
+        ),
+        domain=dict(x=[0, 1], y=[0, 0.78]),
+    ))
+
+    fig.update_layout(
+        paper_bgcolor=PLOTLY_BG, plot_bgcolor=PLOTLY_BG,
+        height=260, margin=dict(l=10, r=10, t=70, b=10),
+    )
+    return fig
+
+
 # ── Plotly: SHAP waterfall ────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False, max_entries=128)
 def waterfall_fig(sv_key: tuple, fv_key: tuple, base_val: float):
@@ -207,79 +251,50 @@ def pr_threshold_fig(threshold_key: float, _prec, _rec, _thr):
 pipeline, scaler, explainer = load_model()
 prec, rec, thr, base_val    = load_pr_data()
 
-# ── Persisted submitted inputs (only updated when "Predict" is clicked) ──────
-if "submitted_inputs" not in st.session_state:
-    st.session_state.submitted_inputs = {
-        "amount":    50.0,
-        "time_val":  50000.0,
-        "threshold": DEFAULT_THRESHOLD,
-        **{feat: cfg["default"] for feat, cfg in TOP5.items()},
-    }
-
-# ── Sidebar form ──────────────────────────────────────────────────────────────
+# ── Sidebar (live sliders) ────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## Transaction Input")
-    st.caption("Adjust the values, then click **Predict** to refresh the dashboard.")
+    st.caption("Adjust values to explore how each feature affects fraud probability.")
     st.divider()
 
-    with st.form("inputs", border=False):
-        amount   = st.slider("Amount ($)", 0.0, 5000.0,
-                             st.session_state.submitted_inputs["amount"], 1.0)
-        time_val = st.slider("Time (seconds since first tx)",
-                             0.0, 172800.0,
-                             st.session_state.submitted_inputs["time_val"],
-                             100.0, format="%.0f")
-        hour_preview = int(time_val // 3600 % 24)
-        st.caption(f"Hour of day: **{hour_preview:02d}:00 UTC**"
-                   + (" 🌙 Night flag active" if hour_preview <= 5 else ""))
+    amount   = st.slider("Amount ($)", 0.0, 5000.0, 50.0, 1.0)
+    time_val = st.slider("Time (seconds since first tx)",
+                         0.0, 172800.0, 50000.0, 100.0, format="%.0f")
+    hour_display = int(time_val // 3600 % 24)
+    st.caption(f"Hour of day: **{hour_display:02d}:00 UTC**"
+               + (" 🌙 Night flag active" if hour_display <= 5 else ""))
 
-        st.divider()
-        st.markdown("**Top-5 SHAP Features**")
-        st.caption("These drive the model's predictions most strongly.")
+    st.divider()
+    st.markdown("**Top-5 SHAP Features**")
+    st.caption("These drive the model's predictions most strongly.")
 
-        slider_vals: dict = {}
-        for feat, cfg in TOP5.items():
-            if feat == "is_round_amount":
-                slider_vals[feat] = float(
-                    st.select_slider(
-                        "is_round_amount", options=[0, 1],
-                        value=int(st.session_state.submitted_inputs[feat]),
-                        help="1 = whole-dollar amount (e.g. $100.00)",
-                    )
-                )
-            else:
-                slider_vals[feat] = st.slider(
-                    feat,
-                    min_value=float(cfg["min"]),
-                    max_value=float(cfg["max"]),
-                    value=float(st.session_state.submitted_inputs[feat]),
-                    step=float(cfg["step"]),
-                )
+    slider_vals: dict = {}
+    for feat, cfg in TOP5.items():
+        if feat == "is_round_amount":
+            slider_vals[feat] = float(
+                st.select_slider("is_round_amount", options=[0, 1],
+                                 value=int(cfg["default"]),
+                                 help="1 = whole-dollar amount (e.g. $100.00)")
+            )
+        else:
+            slider_vals[feat] = st.slider(
+                feat,
+                min_value=float(cfg["min"]),
+                max_value=float(cfg["max"]),
+                value=float(cfg["default"]),
+                step=float(cfg["step"]),
+            )
 
-        st.divider()
-        threshold = st.slider(
-            "Decision Threshold", 0.01, 0.99,
-            st.session_state.submitted_inputs["threshold"], 0.01,
-            help="Probability cutoff for the fraud flag",
-        )
+    st.divider()
+    threshold = st.slider("Decision Threshold", 0.01, 0.99,
+                          DEFAULT_THRESHOLD, 0.01,
+                          help="Probability cutoff for the fraud flag")
 
-        submitted = st.form_submit_button(
-            "Predict", type="primary", use_container_width=True,
-        )
-
-    if submitted:
-        st.session_state.submitted_inputs = {
-            "amount": amount, "time_val": time_val, "threshold": threshold,
-            **slider_vals,
-        }
-
-# ── Use last-submitted values for the dashboard render ────────────────────────
-inp           = st.session_state.submitted_inputs
-amount_use    = inp["amount"]
-time_use      = inp["time_val"]
-threshold_use = inp["threshold"]
-slider_use    = {feat: inp[feat] for feat in TOP5}
-hour_display  = int(time_use // 3600 % 24)
+# Aliases used through the rest of the page
+amount_use    = amount
+time_use      = time_val
+threshold_use = threshold
+slider_use    = slider_vals
 
 # ── Inference ─────────────────────────────────────────────────────────────────
 X_row    = build_row(slider_use, amount_use, time_use)
@@ -298,11 +313,13 @@ st.divider()
 
 col_score, col_meta = st.columns([1, 2], gap="large")
 
-# ── Score card (native components only — no HTML) ────────────────────────────
+# ── Score card (Plotly gauge) ─────────────────────────────────────────────────
 with col_score:
-    label = prob_label(prob)
-    st.metric("Fraud probability", f"{prob*100:.1f}%", label, delta_color="off")
-    st.progress(min(prob, 1.0))
+    st.plotly_chart(
+        score_gauge_fig(round(float(prob), 4), round(float(threshold_use), 2)),
+        use_container_width=True,
+        config={"displayModeBar": False, "staticPlot": True},
+    )
     if is_fraud:
         st.error(f"⚠️  FLAGGED AS FRAUD  ·  threshold = {threshold_use:.2f}")
     else:
