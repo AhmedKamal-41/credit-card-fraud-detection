@@ -142,14 +142,13 @@ def score_gauge_fig(prob: float, threshold: float):
                  f"FRAUD PROBABILITY</span><br>"
                  f"<span style='font-size:15px;color:{color};letter-spacing:2px;"
                  f"font-weight:700'>{label}</span>",
-            y=0.92,
         ),
-        domain=dict(x=[0, 1], y=[0, 0.78]),
+        domain=dict(x=[0, 1], y=[0, 0.72]),
     ))
 
     fig.update_layout(
         paper_bgcolor=PLOTLY_BG, plot_bgcolor=PLOTLY_BG,
-        height=260, margin=dict(l=10, r=10, t=70, b=10),
+        height=280, margin=dict(l=10, r=10, t=80, b=10),
     )
     return fig
 
